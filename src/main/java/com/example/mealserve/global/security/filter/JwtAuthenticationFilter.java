@@ -3,20 +3,19 @@ package com.example.mealserve.global.security.filter;
 
 import com.example.mealserve.domain.account.dto.LoginRequestDto;
 import com.example.mealserve.domain.account.entity.AccountRole;
-import com.example.mealserve.global.security.jwt.JwtUtil;
 import com.example.mealserve.global.security.impl.UserDetailsImpl;
+import com.example.mealserve.global.security.jwt.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import java.io.IOException;
 
 @Slf4j(topic = "로그인 및 JWT 생성")
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
@@ -65,12 +64,14 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         AccountRole role = ((UserDetailsImpl) authResult.getPrincipal()).getAccount().getRole();
 
         String token = jwtUtil.createToken(email, role);
-        jwtUtil.addJwtToCookie(token, response);
 
         // 성공 메시지와 토큰을 JSON 형식으로 응답에 추가
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(new SimpleResponse("로그인 성공")));
+        response.getWriter().write(objectMapper.writeValueAsString(new SimpleResponse("로그인 성공", email, role )));
         response.setStatus(HttpServletResponse.SC_OK);
+
+        jwtUtil.addJwtToCookie(token, response);
+
     }
 
     @Override
@@ -82,7 +83,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         log.info("로그인 실패: {}", failed.getMessage());
 
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(new SimpleResponse("로그인 실패")));
+        response.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse("로그인 실패")));
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     }
 
@@ -90,8 +91,21 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     @Getter
     private static class SimpleResponse {
         private final String message;
+        private final String email;
+        private final AccountRole role;
 
-        public SimpleResponse(String message) {
+        public SimpleResponse(String message, String email, AccountRole role) {
+            this.message = message;
+            this.email = email;
+            this.role = role;
+        }
+    }
+
+    @Getter
+    private static class ErrorResponse {
+        private final String message;
+
+        public ErrorResponse(String message) {
             this.message = message;
         }
     }
